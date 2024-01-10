@@ -1,39 +1,68 @@
 # bi-p02-thesis-topic-evaluation
 
-## Task
-### Starting Point
-#### Review the given dataset
-- make sure, that you can access the data
-- check README.md
-- study given dataset
-- make sure, that you understand the value of the data and process behind the data
-#### Create a data vault model for the given dataset
-- identify events within the dataset (could be multiple)
-- identify respected context information
-- make sure that the schema reflects the data and no data get lost
-#### Create a database schema, that is based on the designed schema model 
-#### ETL
-- Extract all relevant data fields from the given dataset Transform  extracted all relevant data
-- Import transformed data into created database
-#### Visualization/KPI
-- design and calculate KPI to insure the import of the data was successful 
-- perform tasks (see the section below)
-- calculate KPI (see the section below)
+# Init
+```bash
+docker compose up -d
+```
 
-### Tasks
-- How many thesis topics are published in a week, in a month, in a year?
-- Which supervisor has the most thesis topics to offer?
-- Which department has the most thesis topics to offer?
-- How many thesis topics are "removed from the list" in a week, in a month, in a year? Create 1 task/business question of your own and answer this question.
-
-### KPIs
-- Unique thesis topics published every month
-- Average thesis topics for each department
-- Create 1 KPI of your own, describe how to calculate it and put it on the dashboard
+# Database Schema + Creation
+The dataset are dicts for every day and contains a json with two relevant json-files:
+- db-topics
+  - titel
+  - abschlussarbeitstyp
+  - studiengaenge
+  - art_der_arbeit;ansprechpartner
+  - status;erstellt
+  - action;topic_id
+  - url_topic_details
+- db-topics-additional
+  - titel
+  - beschreibung
+  - heimateinrichtung
+  - art_der_arbeit
+  - abschlussarbeitstyp
+  - autor
+  - status
+  - aufgabenstellung
+  - erstellt
+  - topic_id
+  - voraussetzung
 
 
-## Importer
+I have create following database schema:
+![DatabaseSchema.png](media%2FDatabaseSchema.png)
 
+For the creation to the database i used a DDL-SQL-Script:
+[DDL-SQL-File](create.sql)
+
+# ETL: Importer
+For the ETL process i have a python-script: [importer.py](importer.py)
+
+For exceution:
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip3 install -r requirements.txt
+python3 importer.py
+```
+
+# Visualisation
+Go to [localhost:3000](localhost:3000), create an Account and log in to metabase.
+> **_NOTE:_**  use host.docker.internal instead of localhost for the host
+
+I added a dashboard for the tasks/KPIs. The sql statements are in the file [tasks.sql](tasks.sql)
+
+## Tasks
+- T1 - How many thesis topics are published in a week, in a month, in a year?
+- T2 - Which supervisor has the most thesis topics to offer?
+- T3 - Which department has the most thesis topics to offer?
+- T4 - How many thesis topics are "removed from the list" in a week, in a month, in a year?
+- T5 - Create 1 task/business question of your own and answer this question: Which Thesis Type is Most Common?
+
+
+## KPIs
+- KPI 1 - Unique thesis topics published every month
+- KPI 2 - Average thesis topics for each department
+- KPI 3 - Create 1 KPI of your own, describe how to calculate it and put it on the dashboard: This KPI gives an overview of the distribution of thesis topics across different thesis types.
+
+[Dashboard.pdf](media%2FDashboard.pdf)

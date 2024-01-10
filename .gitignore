@@ -38,3 +38,4 @@ Thumbs.db
 # Ignore data
 data
 data-uol-thesis-topics
+tmp*
