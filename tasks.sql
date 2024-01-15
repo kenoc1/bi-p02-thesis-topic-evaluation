@@ -1,60 +1,60 @@
 --- How many thesis topics are published in a week, in a month, in a year?
 SELECT
-    EXTRACT(YEAR FROM entry_date) AS year,
+    EXTRACT(YEAR FROM load_date) AS year,
     COUNT(DISTINCT topic_id) AS count
-FROM topics
+FROM h_topic
 GROUP BY year
 ORDER BY year;
 
 SELECT
-    EXTRACT(MONTH FROM entry_date) AS month,
+    TO_CHAR(load_date, 'Month') AS month,
     COUNT(DISTINCT topic_id) AS count
-FROM topics
-GROUP BY month
-ORDER BY month;
+FROM h_topic
+GROUP BY TO_CHAR(load_date, 'Month')
+ORDER BY TO_DATE(TO_CHAR(load_date, 'Month'), 'Month');
 
 SELECT
-    EXTRACT(WEEK FROM entry_date) AS week_number,
+    EXTRACT(WEEK FROM load_date) AS week_number,
     COUNT(DISTINCT topic_id) AS count
-FROM topics
+FROM h_topic
 GROUP BY week_number
 ORDER BY week_number;
 
 --- Which supervisor has the most thesis topics to offer?
 SELECT contact, COUNT(DISTINCT topic_id) as topic_count
-FROM topics
+FROM s_topic
 GROUP BY contact
 ORDER BY topic_count DESC
 LIMIT 1;
 
-
 --- Which department has the most thesis topics to offer?
 SELECT d.name AS department_name, COUNT(DISTINCT td.topic_id) AS topic_count
-FROM department d
-         JOIN topic_department td ON d.id = td.department_id
+FROM s_department d
+         JOIN l_topic_department td ON d.department_id = td.department_id AND d.load_date = td.load_date
 GROUP BY d.name
 ORDER BY topic_count DESC
 LIMIT 1;
 
 --- How many thesis topics are "removed from the list" in a week, in a month, in a year?
+-- weekly
 WITH daily_counts AS (
     SELECT
-        entry_date,
+        load_date,
         COUNT(topic_id) AS topic_count
     FROM
-        topics
+        h_topic
     GROUP BY
-        entry_date
+        load_date
 ),
      count_changes AS (
          SELECT
-             entry_date,
-             topic_count - LAG(topic_count) OVER (ORDER BY entry_date) AS change
+             load_date,
+             topic_count - LAG(topic_count) OVER (ORDER BY load_date) AS change
          FROM
              daily_counts
      )
 SELECT
-    date_trunc('week', entry_date) AS week,
+    date_trunc('week', load_date) AS week,
     SUM(CASE WHEN change < 0 THEN -change ELSE 0 END) AS removed_topics
 FROM
     count_changes
@@ -63,24 +63,25 @@ GROUP BY
 ORDER BY
     week;
 
+-- monthtly
 WITH daily_counts AS (
     SELECT
-        entry_date,
+        load_date,
         COUNT(topic_id) AS topic_count
     FROM
-        topics
+        h_topic
     GROUP BY
-        entry_date
+        load_date
 ),
      count_changes AS (
          SELECT
-             entry_date,
-             topic_count - LAG(topic_count) OVER (ORDER BY entry_date) AS change
+             load_date,
+             topic_count - LAG(topic_count) OVER (ORDER BY load_date) AS change
          FROM
              daily_counts
      )
 SELECT
-    date_trunc('month', entry_date) AS month,
+    date_trunc('month', load_date) AS month,
     SUM(CASE WHEN change < 0 THEN -change ELSE 0 END) AS removed_topics
 FROM
     count_changes
@@ -89,24 +90,25 @@ GROUP BY
 ORDER BY
     month;
 
+-- yearly
 WITH daily_counts AS (
     SELECT
-        entry_date,
+        load_date,
         COUNT(topic_id) AS topic_count
     FROM
-        topics
+        h_topic
     GROUP BY
-        entry_date
+        load_date
 ),
      count_changes AS (
          SELECT
-             entry_date,
-             topic_count - LAG(topic_count) OVER (ORDER BY entry_date) AS change
+             load_date,
+             topic_count - LAG(topic_count) OVER (ORDER BY load_date) AS change
          FROM
              daily_counts
      )
 SELECT
-    date_trunc('year', entry_date) AS year,
+    date_trunc('year', load_date) AS year,
     SUM(CASE WHEN change < 0 THEN -change ELSE 0 END) AS removed_topics
 FROM
     count_changes
@@ -116,46 +118,44 @@ ORDER BY
     year;
 
 --- Create 1 task/business question of your own and answer this question: Which Thesis Type is Most Common?
-SELECT thesis_type, COUNT(*) as count
-FROM topics
+SELECT thesis_type, COUNT(distinct topic_id) as count
+FROM s_topic
 GROUP BY thesis_type
 ORDER BY count DESC
 LIMIT 1;
 
-
 --- Unique thesis topics published every month
 SELECT
-    date_trunc('month', entry_date) AS month,
+    date_trunc('month', load_date) AS month,
     COUNT(DISTINCT topic_id) AS unique_topics
 FROM
-    topics
+    h_topic
 GROUP BY
     month
 ORDER BY
     month;
 
-
 --- Average thesis topics for each department
 SELECT
     d.name AS department,
-    AVG(t.topic_count) AS average_topics
+    AVG(sub.topic_count) AS average_topics
 FROM
-    department d
+    s_department d
         JOIN
     (SELECT
          td.department_id,
+         t.load_date,
          COUNT(DISTINCT t.topic_id) AS topic_count
      FROM
-         topics t
+         h_topic t
              JOIN
-         topic_department td ON t.topic_id = td.topic_id AND t.entry_date = td.entry_date
+         l_topic_department td ON t.topic_id = td.topic_id AND t.load_date = td.load_date
      GROUP BY
-         td.department_id, date_trunc('month', t.entry_date)) t ON d.id = t.department_id
+         td.department_id, t.load_date) sub ON d.department_id = sub.department_id AND d.load_date = sub.load_date
 GROUP BY
     d.name
 ORDER BY
     average_topics DESC;
-
 
 --- Create 1 KPI of your own, describe how to calculate it and put it on the dashboard:
 --- This KPI gives an overview of the distribution of thesis topics across different thesis types.
@@ -163,6 +163,6 @@ SELECT
     thesis_type,
     COUNT(DISTINCT topic_id) AS topic_count
 FROM
-    topics
+    s_topic
 GROUP BY
     thesis_type;

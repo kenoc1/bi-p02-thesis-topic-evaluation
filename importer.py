@@ -20,7 +20,7 @@ def read_json(file_path):
     else:
         raise ValueError("Unsupported file format")
 
-def instert_into_topics(data, entry_date, conn):
+def insert_into_topics(data, load_date, end_load_date, conn):
     cursor = conn.cursor()
     for key, value in data['topic_id'].items():  # Iterate based on topic_id
         # Prepare data from JSON file
@@ -34,71 +34,75 @@ def instert_into_topics(data, entry_date, conn):
         url_topic_details = data.get('url_topic_details', {}).get(key, None)
         status = data.get('status', {}).get(key, None)
 
-        # SQL statement for insertion
-        insert_sql = """
-        INSERT INTO topics (topic_id, entry_date, title, thesis_type, work_type, contact, created_date, url_topic_details, status)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
         # SQL statement for fetching existing record
         fetch_sql = """
-        SELECT topic_id, entry_date, title, thesis_type, work_type, contact, created_date, url_topic_details, status 
-        FROM topics WHERE topic_id = %s AND entry_date = %s
+        SELECT topic_id
+        FROM s_topic WHERE (LEVENSHTEIN(title, %s) <= 5 AND load_date = %s) OR (topic_id = %s AND load_date = %s)
         """
-        cursor.execute(fetch_sql, (topic_id, entry_date.strftime('%m/%d/%Y')))
+        cursor.execute(fetch_sql, (title, load_date.strftime('%m/%d/%Y'), topic_id, load_date.strftime('%m/%d/%Y')))
         existing_record = cursor.fetchone()
-        
+
         # If record does not exist, insert it
         if existing_record is None:
-            # Execute SQL command
-            try:
-                cursor.execute(insert_sql, (topic_id, entry_date.strftime('%m/%d/%Y'), title, thesis_type, work_type, contact, created_date.strftime('%m/%d/%Y'), url_topic_details, status))
-                
-                if department_string is not None:
-                    department_string = department_string.replace("Zugeordnete Studiengänge", "")
-                    split_departments = re.split('(Master|Bachelor|Zwei-Fächer-Bachelor|Fach-Bachelor|Staatsexamen)', department_string)
-                    if split_departments[0] == "Keine Studiengänge zugeordnet":
-                        departments = split_departments;
-                    else:
-                        split_departments = [i for i in split_departments if i]
-                        departments = [split_departments[i] + split_departments[i + 1] for i in range(0, len(split_departments), 2)]
-                    for department in departments:
-                        department = department.strip()
-                        if department:
-                            cursor.execute("""
-                                INSERT INTO department (name)
-                                SELECT %s
-                                WHERE NOT EXISTS (
-                                    SELECT 1 FROM department WHERE name = %s
-                                )
-                            """, (department, department))
-                            cursor.execute("SELECT id FROM department WHERE name = %s", (department,))
-                            department_id = cursor.fetchone()[0]
-                            cursor.execute("""
-                                INSERT INTO topic_department (topic_id, department_id, entry_date)
-                                VALUES (%s, %s, %s)
-                            """, (topic_id, department_id, entry_date))
-                conn.commit()
-            except Exception as e:
-                print(f"Error: {e}")
-                conn.rollback()
-        else:
-            created_date_db_format = created_date.strftime('%Y-%m-%d')
-            new_data = (topic_id, datetime.strptime(entry_date.strftime('%Y-%m-%d'), '%Y-%m-%d').date(), title, thesis_type, work_type, contact, datetime.strptime(created_date_db_format, '%Y-%m-%d').date(), url_topic_details, status)                
-            differences_found = False
-            for i, (new, existing) in enumerate(zip(new_data, existing_record)):
-                if new != existing:
-                    if not differences_found:
-                        print()
-                        print("topics")
-                        print(f"Data item: {new_data[0]}")
-                        differences_found = True
-                    print(f"Difference in column {i}: {existing} -> {new}")
-            if not differences_found:
-                duplicates_no_differences.append(new_data)
-        
-    cursor.close()
+            # h_topic
+            insert_sql_h_topic = """
+            INSERT INTO h_topic (topic_id, load_date, record_source)
+            VALUES (%s, %s, %s)
+            """
+            cursor.execute(insert_sql_h_topic, (topic_id, load_date.strftime('%m/%d/%Y'), 'importer.py'))
 
-def insert_into_topics_additional(data, entry_date, conn):
+            # s_topic
+            insert_sql_s_topic = """
+            INSERT INTO s_topic (topic_id, load_date, end_date, title, thesis_type, work_type, contact, created_at, url_topic_details, status, record_source)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            cursor.execute(insert_sql_s_topic, (topic_id, load_date.strftime('%m/%d/%Y'), end_load_date.strftime('%m/%d/%Y'), title, thesis_type, work_type, contact, created_date.strftime('%m/%d/%Y'), url_topic_details, status, 'importer.py'))
+
+            # h_department and l_topic_department
+            if department_string is not None:
+                department_string = department_string.replace("Zugeordnete Studiengänge", "")
+                split_departments = re.split('(Master|Bachelor|Zwei-Fächer-Bachelor|Fach-Bachelor|Staatsexamen)', department_string)
+
+                if split_departments[0] == "Keine Studiengänge zugeordnet":
+                        departments = split_departments;
+                else:
+                    split_departments = [i for i in split_departments if i]
+                    departments = [split_departments[i] + split_departments[i + 1] for i in range(0, len(split_departments), 2)]
+                for department in departments:                
+                    department = department.strip()
+                    if department:
+                        # h_department
+                        cursor.execute("""
+                            INSERT INTO h_department (load_date, record_source)
+                            SELECT %s, %s
+                            WHERE NOT EXISTS (
+                                SELECT 1 FROM s_department WHERE name = %s
+                            )
+                            RETURNING department_id
+                        """, (load_date.strftime('%m/%d/%Y'), 'importer.py', department))
+                        result = cursor.fetchone()
+                        if result is None:
+                            cursor.execute("SELECT department_id FROM s_department WHERE LEVENSHTEIN(name, %s) <= 2", (department,))
+                            department_id = cursor.fetchone()[0]
+                        else:
+                            department_id = result[0]
+                            # s_department
+                            insert_sql_s_department = """
+                                INSERT INTO s_department (department_id, load_date, end_date, name)
+                                VALUES (%s, %s, %s, %s)
+                            """
+                            cursor.execute(insert_sql_s_department, (department_id, load_date.strftime('%m/%d/%Y'), end_load_date.strftime('%m/%d/%Y'), department))
+
+                        # l_topic_department
+                        insert_sql_l_topic_department = """
+                        INSERT INTO l_topic_department (topic_id, department_id, load_date, record_source)
+                        VALUES (%s, %s, %s, %s)
+                        """
+                        cursor.execute(insert_sql_l_topic_department, (topic_id, department_id, load_date.strftime('%m/%d/%Y'), 'importer.py'))
+
+        conn.commit()
+
+def update_s_topics(data, load_date, conn):
     cursor = conn.cursor()
     for key, value in data['topic_id'].items():  # Iterate based on topic_id
         # Prepare data from JSON file
@@ -116,63 +120,76 @@ def insert_into_topics_additional(data, entry_date, conn):
         if data.get('abgeschlossen_am', {}).get(key, None) is not None:
             completed_on = datetime.strptime(data.get('abgeschlossen_am', {}).get(key), '%d.%m.%Y').date()
         requirements = data.get('voraussetzung', {}).get(key, None)
-        
-        
-        # SQL statement for insertion
-        insert_sql = """
-        INSERT INTO topics_additional (topic_id, entry_date, title, description, home_institution, work_type, author, thesis_type, status, created_date, task, completed_on, requirements)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+
+        # SQL statement for updating existing record
+        update_sql = """
+        UPDATE s_topic 
+        SET title = %s, description = %s, home_institution = %s, work_type = %s, author = %s, thesis_type = %s, 
+            status = %s, task = %s, completed_on = %s, requirements = %s, created_at = %s
+        WHERE LEVENSHTEIN(title, %s) <= 5 AND load_date = %s
         """
-        # SQL statement for fetching existing record
-        fetch_sql = "SELECT * FROM topics_additional WHERE topic_id = %s AND entry_date = %s"
-        cursor.execute(fetch_sql, (topic_id, entry_date.strftime('%m/%d/%Y')))
-        existing_record = cursor.fetchone()
-        # If record does not exist, insert it
-        if existing_record is None:
-            # Execute SQL command
-            try:
-                cursor.execute(insert_sql, (topic_id, entry_date.strftime('%m/%d/%Y'), title, description, home_institution, work_type, author, thesis_type, status, created_date.strftime('%m/%d/%Y'), task, completed_on, requirements))
-                conn.commit()
-            except Exception as e:
-                print(f"Error: {e}")
-                conn.rollback()
-        else:
-            new_data = (topic_id, entry_date, title, description, home_institution, work_type, author, thesis_type, status, created_date, task, completed_on, requirements)
-            differences_found = False
-            for i, (new, existing) in enumerate(zip(new_data, existing_record)):
-                if new != existing:
-                    if not differences_found:
-                        print()
-                        print(f"topics_additional")
-                        print(f"Data item: {new_data[0]}")
-                        differences_found = True
-                    print(f"Difference in column {i}: {existing} -> {new}")
-            if not differences_found:
-                duplicates_no_differences.append(new_data)
+        cursor.execute(update_sql, (title, description, home_institution, work_type, author, thesis_type, status, task, completed_on, requirements, created_date.strftime('%m/%d/%Y'), title, load_date))
+
+        conn.commit()
     cursor.close()
+
+def overwrite_data(conn):
+    cur = conn.cursor()
+
+    # Parse the dates
+    old_date = datetime.strptime('24.05.2022', '%d.%m.%Y').date()
+    new_date = datetime.strptime('25.05.2022', '%d.%m.%Y').date()
+    
+    cur.execute("DELETE FROM s_topic WHERE load_date = %s", (old_date,))
+    cur.execute("DELETE FROM h_topic WHERE load_date = %s", (old_date,))
+
+    # Insert the new records
+    cur.execute("""
+        INSERT INTO h_topic
+        SELECT topic_id, %s, record_source
+        FROM h_topic
+        WHERE load_date = %s
+    """, (old_date, new_date))
+
+    cur.execute("""
+        INSERT INTO s_topic
+        SELECT topic_id, %s, end_date, title, description, home_institution, thesis_type, author, work_type, contact, url_topic_details, requirements, task, status, completed_on::date, created_at, record_source
+        FROM s_topic
+        WHERE load_date = %s
+    """, (old_date, new_date))
+    
+    conn.commit()
+    cur.close()
+    
 
 def main():
     directory = 'data-uol-thesis-topics'
+    end_load_date = datetime.strptime('19.12.2023', '%d.%m.%Y')
 
     conn = psycopg2.connect(**db_params)
+    cursor = conn.cursor()
+    # For levensthein distance
+    cursor.execute("CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;")
+    conn.commit()
+    cursor.close()
     for root, dirs, files in os.walk(directory):
        for inside_dir in dirs:
            folder_date_string = inside_dir.split('_')[0]  # Cut the folder string from '_'
            for file in os.listdir(os.path.join(root, inside_dir)):
                if file.startswith('db-topics.json'):
-                   entry_date = datetime.strptime(folder_date_string, "%Y%m%d").date()
+                   load_date = datetime.strptime(folder_date_string, "%Y%m%d").date()
                    file_path = os.path.join(root, inside_dir, file)
                    data = read_json(file_path)
-                   instert_into_topics(data, entry_date, conn)
+                   insert_into_topics(data, load_date, end_load_date, conn)
     for root, dirs, files in os.walk(directory):
         for inside_dir in dirs:
             folder_date_string = inside_dir.split('_')[0]  # Cut the folder string from '_'
             for file in os.listdir(os.path.join(root, inside_dir)):
                 if file.startswith('db-topics-additional.json'):
-                    entry_date = datetime.strptime(folder_date_string, "%Y%m%d").date()
+                    load_date = datetime.strptime(folder_date_string, "%Y%m%d").date()
                     file_path = os.path.join(root, inside_dir, file)
                     data = read_json(file_path)
-                    insert_into_topics_additional(data, entry_date, conn)
+                    update_s_topics(data, load_date, conn)
     # Close the connection
     conn.close()
     

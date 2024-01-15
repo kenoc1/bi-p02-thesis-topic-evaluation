@@ -46,6 +46,10 @@ pip3 install -r requirements.txt
 python3 importer.py
 ```
 
+Data cleaning:
+Same data items for date 24.05.2023 on different pages where based on crawler issuer or Stud.Ip problem.
+To solve this, execute [CLEANING-SQL-File](cleaning.sql). This will overwrite the date 24.05.2023 with the data from date 23.05.2023.
+
 # Visualisation
 Go to [localhost:3000](localhost:3000), create an Account and log in to metabase.
 > **_NOTE:_**  use host.docker.internal instead of localhost for the host

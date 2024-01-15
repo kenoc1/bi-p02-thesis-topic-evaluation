@@ -1,43 +1,58 @@
-CREATE TABLE IF NOT EXISTS department (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL
+-- Hubs
+CREATE TABLE IF NOT EXISTS h_topic (
+    topic_id VARCHAR(255) NOT NULL,
+    load_date TIMESTAMP NOT NULL,
+    record_source VARCHAR(255),
+    PRIMARY KEY (topic_id, load_date)
 );
 
-CREATE TABLE IF NOT EXISTS topics (
-    topic_id VARCHAR(255) NOT NULL,
-    title VARCHAR(255),
-    thesis_type VARCHAR(50),
-    work_type VARCHAR(255),
-    contact VARCHAR(255),
-    created_date DATE,
-    url_topic_details TEXT,
-    status VARCHAR(50),
-    entry_date DATE NOT NULL,
-    PRIMARY KEY (topic_id, entry_date)
+CREATE TABLE IF NOT EXISTS h_department (
+    department_id SERIAL NOT NULL,
+    load_date TIMESTAMP NOT NULL,
+    record_source VARCHAR(255),
+    PRIMARY KEY (department_id)
 );
 
-CREATE TABLE IF NOT EXISTS topics_additional (
+-- Links
+CREATE TABLE IF NOT EXISTS l_topic_department (
+    link_id SERIAL PRIMARY KEY,
     topic_id VARCHAR(255) NOT NULL,
-    entry_date DATE NOT NULL,
+    department_id INTEGER NOT NULL,
+    load_date TIMESTAMP NOT NULL,
+    record_source VARCHAR(255),
+    FOREIGN KEY (topic_id, load_date) REFERENCES h_topic(topic_id, load_date),
+    FOREIGN KEY (department_id) REFERENCES h_department(department_id)
+);
+
+-- Satellites
+CREATE TABLE IF NOT EXISTS s_topic (
+    topic_id VARCHAR(255) NOT NULL,
+    load_date TIMESTAMP NOT NULL,
+    end_date TIMESTAMP,
     title VARCHAR(255),
     description TEXT,
     home_institution VARCHAR(255),
-    work_type VARCHAR(255),
+    thesis_type VARCHAR(50),
     author VARCHAR(255),
-    thesis_type VARCHAR(255),
-    status VARCHAR(50),
-    created_date DATE,
-    task TEXT,
-    completed_on DATE,
+    work_type VARCHAR(255),
+    contact VARCHAR(255),
+    url_topic_details TEXT,
     requirements TEXT,
-    PRIMARY KEY (topic_id, entry_date)
+    task TEXT,
+    status VARCHAR(50),
+    completed_on Date,
+    created_at TIMESTAMP,
+    record_source VARCHAR(255),
+    PRIMARY KEY (topic_id, load_date),
+    FOREIGN KEY (topic_id, load_date) REFERENCES h_topic(topic_id, load_date)
 );
 
-CREATE TABLE IF NOT EXISTS topic_department (
-    topic_id VARCHAR(255),
-    department_id INTEGER,
-    entry_date DATE NOT NULL,
-    FOREIGN KEY (topic_id, entry_date) REFERENCES topics(topic_id, entry_date),
-    FOREIGN KEY (department_id) REFERENCES department(id),
-    PRIMARY KEY (topic_id, department_id, entry_date)
+CREATE TABLE IF NOT EXISTS s_department (
+    department_id INTEGER NOT NULL,
+    load_date TIMESTAMP NOT NULL,
+    end_date TIMESTAMP,
+    name TEXT NOT NULL,
+    record_source VARCHAR(255),
+    PRIMARY KEY (department_id, load_date),
+    FOREIGN KEY (department_id) REFERENCES h_department(department_id)
 );
