@@ -32,7 +32,7 @@ The dataset are dicts for every day and contains a json with two relevant json-f
 I have create following database schema:
 ![DatabaseSchema.png](media%2FDatabaseSchema.png)
 
-For the creation to the database i used a DDL-SQL-Script:
+For the creation to the database i used a DDL-SQL-Script. This script excecutes automatically with the docker compuse startup.
 [DDL-SQL-File](create.sql)
 
 # ETL: Importer
