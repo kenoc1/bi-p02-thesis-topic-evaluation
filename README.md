@@ -56,6 +56,8 @@ Go to [localhost:3000](localhost:3000), create an Account and log in to metabase
 
 I added a dashboard for the tasks/KPIs. The sql statements are in the file [tasks.sql](tasks.sql)
 
+The final dashboard is here: [Dashboard.pdf](media%2FDashboard.pdf)
+
 ## Tasks
 - T1 - How many thesis topics are published in a week, in a month, in a year?
 - T2 - Which supervisor has the most thesis topics to offer?
@@ -69,4 +71,6 @@ I added a dashboard for the tasks/KPIs. The sql statements are in the file [task
 - KPI 2 - Average thesis topics for each department
 - KPI 3 - Create 1 KPI of your own, describe how to calculate it and put it on the dashboard: This KPI gives an overview of the distribution of thesis topics across different thesis types.
 
-[Dashboard.pdf](media%2FDashboard.pdf)
+# Presentation
+The file with the presenation slides can be found here:
+[Slides.pdf](media%2FSlides.pdf)
