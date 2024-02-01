@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   postgres:
-    image: postgres:latest
+    image: postgres:alpine3.19
     environment:
       POSTGRES_DB: vault
       POSTGRES_USER: admin

@@ -39,3 +39,6 @@ Thumbs.db
 data
 data-uol-thesis-topics
 tmp*
+media/Dashboard-old-v2.pdf
+tasks-old.sql
+importer-old.py

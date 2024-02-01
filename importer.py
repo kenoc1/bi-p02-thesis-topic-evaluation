@@ -133,35 +133,6 @@ def update_s_topics(data, load_date, conn):
         conn.commit()
     cursor.close()
 
-def overwrite_data(conn):
-    cur = conn.cursor()
-
-    # Parse the dates
-    old_date = datetime.strptime('24.05.2022', '%d.%m.%Y').date()
-    new_date = datetime.strptime('25.05.2022', '%d.%m.%Y').date()
-    
-    cur.execute("DELETE FROM s_topic WHERE load_date = %s", (old_date,))
-    cur.execute("DELETE FROM h_topic WHERE load_date = %s", (old_date,))
-
-    # Insert the new records
-    cur.execute("""
-        INSERT INTO h_topic
-        SELECT topic_id, %s, record_source
-        FROM h_topic
-        WHERE load_date = %s
-    """, (old_date, new_date))
-
-    cur.execute("""
-        INSERT INTO s_topic
-        SELECT topic_id, %s, end_date, title, description, home_institution, thesis_type, author, work_type, contact, url_topic_details, requirements, task, status, completed_on::date, created_at, record_source
-        FROM s_topic
-        WHERE load_date = %s
-    """, (old_date, new_date))
-    
-    conn.commit()
-    cur.close()
-    
-
 def main():
     directory = 'data-uol-thesis-topics'
     end_load_date = datetime.strptime('19.12.2023', '%d.%m.%Y')

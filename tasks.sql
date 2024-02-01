@@ -35,83 +35,65 @@ GROUP BY d.name
 ORDER BY topic_count DESC
 LIMIT 1;
 
---- How many thesis topics are "removed from the list" in a week, in a month, in a year?
+--- How many unique thesis topics are "removed from the list" in a week, in a month, in a year?
 -- weekly
-WITH daily_counts AS (
-    SELECT
-        load_date,
-        COUNT(topic_id) AS topic_count
-    FROM
-        h_topic
-    GROUP BY
-        load_date
-),
-     count_changes AS (
-         SELECT
-             load_date,
-             topic_count - LAG(topic_count) OVER (ORDER BY load_date) AS change
-         FROM
-             daily_counts
-     )
 SELECT
-    date_trunc('week', load_date) AS week,
-    SUM(CASE WHEN change < 0 THEN -change ELSE 0 END) AS removed_topics
+    DATE_TRUNC('week', st.load_date) AS week,
+    COUNT(DISTINCT st.topic_id) AS removed_topics
 FROM
-    count_changes
+    s_topic st
+        LEFT JOIN
+    s_topic st_future ON st.topic_id = st_future.topic_id AND st_future.load_date > st.load_date
+WHERE
+    st_future.topic_id IS NULL
+    AND st.load_date < '2023-12-18' -- incomplete week
 GROUP BY
     week
 ORDER BY
     week;
 
 -- monthtly
-WITH daily_counts AS (
-    SELECT
-        load_date,
-        COUNT(topic_id) AS topic_count
-    FROM
-        h_topic
-    GROUP BY
-        load_date
-),
-     count_changes AS (
-         SELECT
-             load_date,
-             topic_count - LAG(topic_count) OVER (ORDER BY load_date) AS change
-         FROM
-             daily_counts
-     )
 SELECT
-    date_trunc('month', load_date) AS month,
-    SUM(CASE WHEN change < 0 THEN -change ELSE 0 END) AS removed_topics
+    TO_CHAR(DATE_TRUNC('month', st.load_date), 'Month') AS month,
+    COUNT(DISTINCT st.topic_id) AS removed_topics
 FROM
-    count_changes
+    s_topic st
+        LEFT JOIN
+    s_topic st_future ON st.topic_id = st_future.topic_id AND st_future.load_date > st.load_date
+WHERE
+    st_future.topic_id IS NULL
+    AND st.load_date < '2023-12-18' -- incomplete week
 GROUP BY
-    month
+    DATE_TRUNC('month', st.load_date)
 ORDER BY
-    month;
+    MIN(st.load_date);
+
+SELECT
+    TO_CHAR(DATE_TRUNC('month', st.load_date), 'YYYY-Month') AS year_month,
+    COUNT(DISTINCT st.topic_id) AS removed_topics
+FROM
+    s_topic st
+        LEFT JOIN
+    s_topic st_future ON st.topic_id = st_future.topic_id AND st_future.load_date > st.load_date
+WHERE
+    st_future.topic_id IS NULL
+    AND st.load_date < '2023-12-18' -- incomplete week
+GROUP BY
+    DATE_TRUNC('month', st.load_date)
+ORDER BY
+    DATE_TRUNC('month', st.load_date);
 
 -- yearly
-WITH daily_counts AS (
-    SELECT
-        load_date,
-        COUNT(topic_id) AS topic_count
-    FROM
-        h_topic
-    GROUP BY
-        load_date
-),
-     count_changes AS (
-         SELECT
-             load_date,
-             topic_count - LAG(topic_count) OVER (ORDER BY load_date) AS change
-         FROM
-             daily_counts
-     )
 SELECT
-    date_trunc('year', load_date) AS year,
-    SUM(CASE WHEN change < 0 THEN -change ELSE 0 END) AS removed_topics
+    DATE_TRUNC('year', st.load_date) AS year,
+    COUNT(DISTINCT st.topic_id) AS removed_topics
 FROM
-    count_changes
+    s_topic st
+        LEFT JOIN
+    s_topic st_future ON st.topic_id = st_future.topic_id AND st_future.load_date > st.load_date
+WHERE
+    st_future.topic_id IS NULL
+    AND st.load_date < '2023-12-18' -- incomplete week
 GROUP BY
     year
 ORDER BY
