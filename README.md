@@ -2,7 +2,7 @@
 > [!CAUTION]
 > **WARNING: Use of Dummy Passwords**
 
-⚠️ :warning: The project's Docker Compose file contains *dummy passwords*. These are suitable for **local development and testing only**. Using them in a live production environment or pushing them to a public repository (like GitHub) poses a significant security risk.
+:warning: The project's Docker Compose file contains *dummy passwords*. These are suitable for **local development and testing only**. Using them in a live production environment or pushing them to a public repository (like GitHub) poses a significant security risk.
 
 **Action Required:** Before pushing your code to a repository or deploying it to production, **replace all dummy passwords** with strong, unique credentials. Failure to do so can lead to serious security breaches.
 
